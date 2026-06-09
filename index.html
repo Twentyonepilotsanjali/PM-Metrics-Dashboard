@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Metrics · HnA Systems</title>
+
+  <!-- React + ReactDOM -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+  <!-- Recharts (bundles its own PropTypes + D3 subset) -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #f4f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* KPI grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 640px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    /* KPI card */
+    .kpi-card {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: background 0.15s;
+      cursor: default;
+    }
+    .kpi-card:hover { background: #fafafa; }
+
+    .kpi-label  { font-size: 12px; color: #424242; font-weight: 500; }
+    .kpi-value  { font-size: 28px; font-weight: 700; color: #111; line-height: 1; }
+    .kpi-delta  {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 12px; font-weight: 600;
+      border-radius: 6px; padding: 3px 8px;
+      width: fit-content; margin-top: 2px;
+    }
+    .kpi-delta.good  { color: #2e7d32; background: #e8f5e9; }
+    .kpi-delta.bad   { color: #c0392b; background: #fff0ee; }
+
+    /* Section cards */
+    .card {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card:last-child { margin-bottom: 0; }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .card-title  { font-size: 13px; font-weight: 600; color: #212121; }
+    .card-sub    { font-size: 11px; color: #9e9e9e; }
+
+    /* Range / filter buttons */
+    .btn-group { display: flex; gap: 4px; }
+    .btn-pill  {
+      font-size: 12px; font-weight: 500;
+      padding: 3px 10px; border-radius: 6px;
+      border: 1px solid #e8e8e8;
+      background: #fff; color: #616161;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-pill.active {
+      border-color: #534AB7;
+      background: #534AB7;
+      color: #fff;
+    }
+
+    /* Filter pills (rounded) */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .btn-filter {
+      font-size: 12px; font-weight: 500;
+      padding: 4px 12px; border-radius: 20px;
+      border: 1px solid #e8e8e8;
+      background: #fff; color: #616161;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-filter.active {
+      border-color: #534AB7;
+      background: #534AB7;
+      color: #fff;
+    }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left;
+      font-size: 11px; font-weight: 600;
+      color: #9e9e9e; letter-spacing: 0.04em;
+      padding-bottom: 10px; padding-right: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    tbody tr { border-bottom: 1px solid #f5f5f5; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody td { font-size: 13px; color: #424242; padding: 12px 12px 12px 0; }
+    tbody td:first-child { color: #212121; font-weight: 500; }
+    tbody td:last-child { padding-right: 0; }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+  (function () {
+    const { useState }           = React;
+    const { AreaChart, Area, XAxis, YAxis,
+            CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+
+    /* ── Data ── */
+    const mauData = [
+      { month: "Jan", mau: 14200 },
+      { month: "Feb", mau: 15800 },
+      { month: "Mar", mau: 17400 },
+      { month: "Apr", mau: 19600 },
+      { month: "May", mau: 22100 },
+      { month: "Jun", mau: 24500 },
+    ];
+
+    const rangeMonths = { "1M": 1, "3M": 3, "6M": 6 };
+
+    const features = [
+      { name: "Dark mode",  votes: 342, effort: "Low",  status: "Shipped"  },
+      { name: "API access", votes: 287, effort: "High", status: "Building" },
+      { name: "CSV export", votes: 198, effort: "Med",  status: "Backlog"  },
+      { name: "Mobile app", votes: 451, effort: "High", status: "Building" },
+      { name: "SSO / SAML", votes: 174, effort: "Med",  status: "Shipped"  },
+    ];
+
+    const statusStyles = {
+      Shipped:  { background: "#e8f5e9", color: "#2e7d32" },
+      Building: { background: "#ede7f6", color: "#512da8" },
+      Backlog:  { background: "#f5f5f5", color: "#757575" },
+    };
+
+    const filters    = ["All", "Shipped", "Building", "Backlog"];
+    const PURPLE     = "#534AB7";
+    const GREEN      = "#2e7d32";
+    const CORAL      = "#c0392b";
+
+    /* ── KPI Card ── */
+    function KPICard({ label, value, delta, direction, accentColor }) {
+      const isGood = accentColor === GREEN;
+      return React.createElement("div", {
+        className: "kpi-card",
+        style: { borderLeft: `3px solid ${accentColor}` },
+      },
+        React.createElement("span", { className: "kpi-label" }, label),
+        React.createElement("span", { className: "kpi-value" }, value),
+        React.createElement("span", { className: `kpi-delta ${isGood ? "good" : "bad"}` },
+          direction === "up" ? "↑" : "↓", " ", delta
+        )
+      );
+    }
+
+    /* ── Main Dashboard ── */
+    function HnADashboard() {
+      const [activeFilter, setActiveFilter] = useState("All");
+      const [timeRange,    setTimeRange]    = useState("6M");
+
+      const chartData = mauData.slice(-rangeMonths[timeRange]);
+      const mauValue  = chartData[chartData.length - 1].mau.toLocaleString();
+
+      const kpis = [
+        { label: "Monthly active users", value: mauValue, delta: "18%",   direction: "up",   accentColor: GREEN },
+        { label: "Churn rate",           value: "3.2%",   delta: "0.4pp", direction: "down", accentColor: CORAL },
+        { label: "NPS",                  value: "9",      delta: "3 pts", direction: "up",   accentColor: GREEN },
+        { label: "MRR",                  value: "$182K",  delta: "23%",   direction: "up",   accentColor: GREEN },
+      ];
+
+      const filtered = features
+        .filter(f => activeFilter === "All" || f.status === activeFilter)
+        .sort((a, b) => b.votes - a.votes);
+
+      return React.createElement(React.Fragment, null,
+
+        /* Header */
+        React.createElement("div", {
+          style: {
+            background: "#fff",
+            borderBottom: "1px solid #e8e8e8",
+            padding: "0 24px",
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }
+        },
+          React.createElement("span", {
+            style: { fontSize: 18, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }
+          }, "Product metrics — HnA Systems"),
+          React.createElement("span", {
+            style: { fontSize: 12, color: "#9e9e9e" }
+          }, "June 2026 · Last updated: today")
+        ),
+
+        /* Body */
+        React.createElement("div", {
+          style: { padding: "24px", maxWidth: 1200, margin: "0 auto" }
+        },
+
+          /* KPI grid */
+          React.createElement("div", { className: "kpi-grid" },
+            kpis.map(k => React.createElement(KPICard, { key: k.label, ...k }))
+          ),
+
+          /* MAU Chart card */
+          React.createElement("div", { className: "card" },
+            React.createElement("div", { className: "card-header" },
+              React.createElement("span", { className: "card-title" }, "MAU trend"),
+              React.createElement("div", { className: "btn-group" },
+                ["1M", "3M", "6M"].map(r =>
+                  React.createElement("button", {
+                    key: r,
+                    className: `btn-pill${timeRange === r ? " active" : ""}`,
+                    onClick: () => setTimeRange(r),
+                  }, r)
+                )
+              )
+            ),
+
+            React.createElement(ResponsiveContainer, { width: "100%", height: 240 },
+              React.createElement(AreaChart, {
+                data: chartData,
+                margin: { top: 4, right: 8, left: 0, bottom: 0 },
+              },
+                React.createElement("defs", null,
+                  React.createElement("linearGradient", { id: "mauFill", x1: "0", y1: "0", x2: "0", y2: "1" },
+                    React.createElement("stop", { offset: "5%",  stopColor: PURPLE, stopOpacity: 0.12 }),
+                    React.createElement("stop", { offset: "95%", stopColor: PURPLE, stopOpacity: 0 })
+                  )
+                ),
+                React.createElement(CartesianGrid, {
+                  strokeDasharray: "3 3", stroke: "#f0f0f0", vertical: false
+                }),
+                React.createElement(XAxis, {
+                  dataKey: "month",
+                  tick: { fontSize: 12, fill: "#9e9e9e" },
+                  axisLine: false, tickLine: false,
+                }),
+                React.createElement(YAxis, {
+                  tick: { fontSize: 12, fill: "#9e9e9e" },
+                  axisLine: false, tickLine: false,
+                  tickFormatter: v => `${(v / 1000).toFixed(0)}k`,
+                  width: 36,
+                }),
+                React.createElement(Tooltip, {
+                  formatter: v => [v.toLocaleString(), "MAU"],
+                  contentStyle: {
+                    fontSize: 12, borderRadius: 8,
+                    border: "1px solid #e8e8e8", boxShadow: "none",
+                  },
+                  labelStyle: { color: "#212121", fontWeight: 600 },
+                }),
+                React.createElement(Area, {
+                  type: "monotone", dataKey: "mau",
+                  stroke: PURPLE, strokeWidth: 2.5,
+                  fill: "url(#mauFill)", dot: false,
+                  activeDot: { r: 5, fill: PURPLE, strokeWidth: 0 },
+                })
+              )
+            )
+          ),
+
+          /* Feature Request Table card */
+          React.createElement("div", { className: "card" },
+            React.createElement("div", { className: "card-header" },
+              React.createElement("span", { className: "card-title" }, "Feature requests"),
+              React.createElement("span", { className: "card-sub" }, `${filtered.length} items`)
+            ),
+
+            /* Filter pills */
+            React.createElement("div", { className: "filter-bar" },
+              filters.map(f =>
+                React.createElement("button", {
+                  key: f,
+                  className: `btn-filter${activeFilter === f ? " active" : ""}`,
+                  onClick: () => setActiveFilter(f),
+                }, f)
+              )
+            ),
+
+            /* Table */
+            React.createElement("table", null,
+              React.createElement("thead", null,
+                React.createElement("tr", null,
+                  ["Feature", "Votes", "Effort", "Status"].map(col =>
+                    React.createElement("th", { key: col }, col.toUpperCase())
+                  )
+                )
+              ),
+              React.createElement("tbody", null,
+                filtered.map(f =>
+                  React.createElement("tr", { key: f.name },
+                    React.createElement("td", null, f.name),
+                    React.createElement("td", null, f.votes),
+                    React.createElement("td", null, f.effort),
+                    React.createElement("td", null,
+                      React.createElement("span", {
+                        className: "status-badge",
+                        style: statusStyles[f.status],
+                      }, f.status)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    /* ── Mount ── */
+    ReactDOM.createRoot(document.getElementById("root"))
+      .render(React.createElement(HnADashboard));
+  })();
+  </script>
+</body>
+</html>
