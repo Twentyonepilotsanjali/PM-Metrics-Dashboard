@@ -1,509 +1,317 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Product metrics – HnA Systems</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Metrics – HnA Systems</title>
 
-  body {
-    min-height: 100vh;
-    background: #f4f4f6;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    color: #111;
-  }
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  /* ── Header ── */
-  #header {
-    background: #fff;
-    border-bottom: 1px solid #e8e8e8;
-    padding: 0 24px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  #header-title { font-size: 18px; font-weight: 700; color: #111; letter-spacing: -0.01em; }
-  #header-meta  { font-size: 12px; color: #9e9e9e; }
+  <!-- Recharts -->
+  <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
 
-  /* ── Body ── */
-  #body {
-    padding: 24px;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+  <!-- Babel Standalone (JSX transpiler) -->
+  <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
 
-  /* ── KPI Grid ── */
-  #kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  @media (max-width: 640px) {
-    #kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-
-  .kpi-card {
-    background: #fff;
-    border: 1px solid #e8e8e8;
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transition: background 0.15s;
-    cursor: default;
-  }
-  .kpi-card:hover { background: #fafafa; }
-  .kpi-label { font-size: 12px; color: #424242; font-weight: 500; }
-  .kpi-value { font-size: 28px; font-weight: 700; color: #111; line-height: 1; }
-  .kpi-delta {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: 6px;
-    padding: 3px 8px;
-    width: fit-content;
-    margin-top: 2px;
-  }
-  .kpi-delta.good  { color: #2e7d32; background: #e8f5e9; }
-  .kpi-delta.bad   { color: #c0392b; background: #fff0ee; }
-
-  /* ── Panel (shared card shell) ── */
-  .panel {
-    background: #fff;
-    border: 1px solid #e8e8e8;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-  }
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-  .panel-title { font-size: 13px; font-weight: 600; color: #212121; }
-  .panel-meta  { font-size: 11px; color: #9e9e9e; }
-
-  /* ── Range buttons ── */
-  .btn-group { display: flex; gap: 4px; }
-  .range-btn {
-    font-size: 12px; font-weight: 500;
-    padding: 3px 10px; border-radius: 6px;
-    border: 1px solid #e8e8e8;
-    background: #fff; color: #616161;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .range-btn.active {
-    border-color: #534AB7;
-    background: #534AB7;
-    color: #fff;
-  }
-
-  /* ── SVG Chart ── */
-  #chart-svg {
-    width: 100%;
-    height: 240px;
-    display: block;
-    overflow: visible;
-  }
-
-  /* ── Tooltip ── */
-  #chart-tooltip {
-    position: absolute;
-    pointer-events: none;
-    background: #fff;
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #212121;
-    display: none;
-    white-space: nowrap;
-  }
-  #chart-tooltip strong { display: block; font-weight: 600; margin-bottom: 2px; }
-  #chart-tooltip span   { color: #534AB7; font-weight: 500; }
-
-  /* ── Filter pills ── */
-  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .filter-btn {
-    font-size: 12px; font-weight: 500;
-    padding: 4px 12px; border-radius: 20px;
-    border: 1px solid #e8e8e8;
-    background: #fff; color: #616161;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .filter-btn.active {
-    border-color: #534AB7;
-    background: #534AB7;
-    color: #fff;
-  }
-
-  /* ── Feature table ── */
-  #feature-table { width: 100%; border-collapse: collapse; }
-  #feature-table thead tr { border-bottom: 1px solid #f0f0f0; }
-  #feature-table th {
-    text-align: left; font-size: 11px; font-weight: 600;
-    color: #9e9e9e; padding-bottom: 10px; padding-right: 12px;
-    letter-spacing: 0.04em;
-  }
-  #feature-table td { padding: 12px 12px 12px 0; font-size: 13px; color: #424242; }
-  #feature-table td:first-child { color: #212121; font-weight: 500; }
-  .status-badge {
-    font-size: 11px; font-weight: 600;
-    padding: 3px 10px; border-radius: 20px;
-    display: inline-block;
-  }
-  .status-Shipped  { background: #e8f5e9; color: #2e7d32; }
-  .status-Building { background: #ede7f6; color: #512da8; }
-  .status-Backlog  { background: #f5f5f5; color: #757575; }
-
-  /* chart wrapper needs position for tooltip */
-  #chart-wrap { position: relative; }
-</style>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f4f4f6; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 640px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
 </head>
 <body>
+  <div id="root"></div>
 
-<!-- Header -->
-<div id="header">
-  <span id="header-title">Product metrics – HnA Systems</span>
-  <span id="header-meta">June 2026 · Last updated: today</span>
-</div>
+  <script type="text/babel">
+    const { useState } = React;
+    const {
+      AreaChart, Area, XAxis, YAxis, CartesianGrid,
+      Tooltip, ResponsiveContainer
+    } = Recharts;
 
-<!-- Body -->
-<div id="body">
+    const mauData = [
+      { month: "Jan", mau: 14200 },
+      { month: "Feb", mau: 15800 },
+      { month: "Mar", mau: 17400 },
+      { month: "Apr", mau: 19600 },
+      { month: "May", mau: 22100 },
+      { month: "Jun", mau: 24500 },
+    ];
 
-  <!-- KPI Cards -->
-  <div id="kpi-grid"></div>
+    const rangeMonths = { "1M": 1, "3M": 3, "6M": 6 };
 
-  <!-- MAU Chart -->
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">MAU trend</span>
-      <div class="btn-group" id="range-btns"></div>
-    </div>
-    <div id="chart-wrap">
-      <svg id="chart-svg" viewBox="0 0 780 220" preserveAspectRatio="none"></svg>
-      <div id="chart-tooltip"></div>
-    </div>
-  </div>
+    const features = [
+      { name: "Dark mode",  votes: 342, effort: "Low",  status: "Shipped"  },
+      { name: "API access", votes: 287, effort: "High", status: "Building" },
+      { name: "CSV export", votes: 198, effort: "Med",  status: "Backlog"  },
+      { name: "Mobile app", votes: 451, effort: "High", status: "Building" },
+      { name: "SSO / SAML", votes: 174, effort: "Med",  status: "Shipped"  },
+    ];
 
-  <!-- Feature Requests -->
-  <div class="panel" style="margin-bottom:0">
-    <div class="panel-header">
-      <span class="panel-title">Feature requests</span>
-      <span class="panel-meta" id="feature-count"></span>
-    </div>
-    <div class="filter-row" id="filter-btns"></div>
-    <table id="feature-table">
-      <thead>
-        <tr>
-          <th>FEATURE</th>
-          <th>VOTES</th>
-          <th>EFFORT</th>
-          <th>STATUS</th>
-        </tr>
-      </thead>
-      <tbody id="feature-tbody"></tbody>
-    </table>
-  </div>
+    const statusStyles = {
+      Shipped:  { background: "#e8f5e9", color: "#2e7d32" },
+      Building: { background: "#ede7f6", color: "#512da8" },
+      Backlog:  { background: "#f5f5f5", color: "#757575" },
+    };
 
-</div>
+    const filters = ["All", "Shipped", "Building", "Backlog"];
 
-<script>
-// ─── Data ───────────────────────────────────────────────────────────────────
-const MAU_DATA = [
-  { month: "Jan", mau: 14200 },
-  { month: "Feb", mau: 15800 },
-  { month: "Mar", mau: 17400 },
-  { month: "Apr", mau: 19600 },
-  { month: "May", mau: 22100 },
-  { month: "Jun", mau: 24500 },
-];
+    const PURPLE = "#534AB7";
+    const GREEN  = "#2e7d32";
+    const CORAL  = "#c0392b";
 
-const RANGE_MONTHS = { "1M": 1, "3M": 3, "6M": 6 };
+    function KPICard({ label, value, delta, direction, accentColor }) {
+      const [hovered, setHovered] = useState(false);
+      const isGood = accentColor === GREEN;
 
-const FEATURES = [
-  { name: "Dark mode",  votes: 342, effort: "Low",  status: "Shipped"  },
-  { name: "API access", votes: 287, effort: "High", status: "Building" },
-  { name: "CSV export", votes: 198, effort: "Med",  status: "Backlog"  },
-  { name: "Mobile app", votes: 451, effort: "High", status: "Building" },
-  { name: "SSO / SAML", votes: 174, effort: "Med",  status: "Shipped"  },
-];
+      return (
+        <div
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            background: hovered ? "#fafafa" : "#fff",
+            border: "1px solid #e8e8e8",
+            borderLeft: `3px solid ${accentColor}`,
+            borderRadius: 12,
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            transition: "background 0.15s",
+            cursor: "default",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#424242", fontWeight: 500 }}>{label}</span>
+          <span style={{ fontSize: 28, fontWeight: 700, color: "#111", lineHeight: 1 }}>{value}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 3,
+              fontSize: 12, fontWeight: 600,
+              color: isGood ? GREEN : CORAL,
+              background: isGood ? "#e8f5e9" : "#fff0ee",
+              borderRadius: 6, padding: "3px 8px",
+            }}>
+              {direction === "up" ? "↑" : "↓"} {delta}
+            </span>
+          </div>
+        </div>
+      );
+    }
 
-const PURPLE = "#534AB7";
-const GREEN  = "#2e7d32";
-const CORAL  = "#c0392b";
+    function HnADashboard() {
+      const [activeFilter, setActiveFilter] = useState("All");
+      const [timeRange, setTimeRange]       = useState("6M");
 
-// ─── State ───────────────────────────────────────────────────────────────────
-let activeRange  = "6M";
-let activeFilter = "All";
+      const chartData = mauData.slice(-rangeMonths[timeRange]);
+      const mauValue  = chartData[chartData.length - 1].mau.toLocaleString();
 
-// ─── KPI Cards ───────────────────────────────────────────────────────────────
-function buildKPIs() {
-  const chartData = MAU_DATA.slice(-RANGE_MONTHS[activeRange]);
-  const mauValue  = chartData[chartData.length - 1].mau.toLocaleString();
+      const kpis = [
+        { label: "Monthly active users", value: mauValue, delta: "18%",   direction: "up",   accentColor: GREEN },
+        { label: "Churn rate",           value: "3.2%",   delta: "0.4pp", direction: "down", accentColor: CORAL },
+        { label: "NPS",                  value: "9",      delta: "3 pts", direction: "up",   accentColor: GREEN },
+        { label: "MRR",                  value: "$182K",  delta: "23%",   direction: "up",   accentColor: GREEN },
+      ];
 
-  const kpis = [
-    { label: "Monthly active users", value: mauValue, delta: "18%",   direction: "up",   good: true  },
-    { label: "Churn rate",           value: "3.2%",   delta: "0.4pp", direction: "down", good: false },
-    { label: "NPS",                  value: "9",      delta: "3 pts", direction: "up",   good: true  },
-    { label: "MRR",                  value: "$182K",  delta: "23%",   direction: "up",   good: true  },
-  ];
+      const filtered = features
+        .filter((f) => activeFilter === "All" || f.status === activeFilter)
+        .sort((a, b) => b.votes - a.votes);
 
-  const accentMap = [GREEN, CORAL, GREEN, GREEN];
-  const grid = document.getElementById("kpi-grid");
-  grid.innerHTML = "";
+      return (
+        <div style={{
+          minHeight: "100vh",
+          background: "#f4f4f6",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        }}>
 
-  kpis.forEach((k, i) => {
-    const card = document.createElement("div");
-    card.className = "kpi-card";
-    card.style.borderLeft = `3px solid ${accentMap[i]}`;
-    card.innerHTML = `
-      <span class="kpi-label">${k.label}</span>
-      <span class="kpi-value">${k.value}</span>
-      <span class="kpi-delta ${k.good ? "good" : "bad"}">
-        ${k.direction === "up" ? "↑" : "↓"} ${k.delta}
-      </span>`;
-    grid.appendChild(card);
-  });
-}
+          {/* Header bar */}
+          <div style={{
+            background: "#fff",
+            borderBottom: "1px solid #e8e8e8",
+            padding: "0 24px",
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }}>
+              Product metrics – HnA Systems
+            </span>
+            <span style={{ fontSize: 12, color: "#9e9e9e" }}>
+              June 2026 · Last updated: today
+            </span>
+          </div>
 
-// ─── SVG Area Chart ──────────────────────────────────────────────────────────
-const SVG_W = 780, SVG_H = 220;
-const PAD   = { top: 10, right: 12, bottom: 28, left: 42 };
-const CHART_W = SVG_W - PAD.left - PAD.right;
-const CHART_H = SVG_H - PAD.top  - PAD.bottom;
+          {/* Page body */}
+          <div style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}>
 
-function buildChart() {
-  const data = MAU_DATA.slice(-RANGE_MONTHS[activeRange]);
-  const svg  = document.getElementById("chart-svg");
-  svg.innerHTML = "";
+            {/* KPI Cards */}
+            <div className="kpi-grid">
+              {kpis.map((kpi) => (
+                <KPICard key={kpi.label} {...kpi} />
+              ))}
+            </div>
 
-  const ns = "http://www.w3.org/2000/svg";
+            {/* MAU Trend Chart */}
+            <div style={{
+              background: "#fff", border: "1px solid #e8e8e8",
+              borderRadius: 12, padding: 16, marginBottom: 16,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#212121" }}>MAU trend</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {["1M", "3M", "6M"].map((r) => {
+                    const active = timeRange === r;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => setTimeRange(r)}
+                        style={{
+                          fontSize: 12, fontWeight: 500,
+                          padding: "3px 10px", borderRadius: 6,
+                          border: "1px solid",
+                          borderColor: active ? PURPLE : "#e8e8e8",
+                          background: active ? PURPLE : "#fff",
+                          color: active ? "#fff" : "#616161",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {r}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="mauFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={PURPLE} stopOpacity={0.12} />
+                      <stop offset="95%" stopColor={PURPLE} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 12, fill: "#9e9e9e" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: "#9e9e9e" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                    width={36}
+                  />
+                  <Tooltip
+                    formatter={(v) => [v.toLocaleString(), "MAU"]}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "none" }}
+                    labelStyle={{ color: "#212121", fontWeight: 600 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="mau"
+                    stroke={PURPLE}
+                    strokeWidth={2.5}
+                    fill="url(#mauFill)"
+                    dot={false}
+                    activeDot={{ r: 5, fill: PURPLE, strokeWidth: 0 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
 
-  const minV = Math.min(...data.map(d => d.mau));
-  const maxV = Math.max(...data.map(d => d.mau));
-  const padV = (maxV - minV) * 0.15;
-  const lo   = Math.floor((minV - padV) / 1000) * 1000;
-  const hi   = Math.ceil ((maxV + padV) / 1000) * 1000;
+            {/* Feature Request Table */}
+            <div style={{
+              background: "#fff", border: "1px solid #e8e8e8",
+              borderRadius: 12, padding: 16,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#212121" }}>Feature requests</span>
+                <span style={{ fontSize: 11, color: "#9e9e9e" }}>{filtered.length} items</span>
+              </div>
 
-  const xScale = i  => PAD.left + (i / (data.length - 1)) * CHART_W;
-  const yScale = v  => PAD.top  + CHART_H - ((v - lo) / (hi - lo)) * CHART_H;
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                {filters.map((f) => {
+                  const active = activeFilter === f;
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setActiveFilter(f)}
+                      style={{
+                        fontSize: 12, fontWeight: 500,
+                        padding: "4px 12px", borderRadius: 20,
+                        border: "1px solid",
+                        borderColor: active ? PURPLE : "#e8e8e8",
+                        background: active ? PURPLE : "#fff",
+                        color: active ? "#fff" : "#616161",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {f}
+                    </button>
+                  );
+                })}
+              </div>
 
-  // ── Gradient def ──
-  const defs = document.createElementNS(ns, "defs");
-  defs.innerHTML = `
-    <linearGradient id="mauFill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="5%"  stop-color="${PURPLE}" stop-opacity="0.12"/>
-      <stop offset="95%" stop-color="${PURPLE}" stop-opacity="0"/>
-    </linearGradient>`;
-  svg.appendChild(defs);
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    {["Feature", "Votes", "Effort", "Status"].map((col) => (
+                      <th key={col} style={{
+                        textAlign: "left", fontSize: 11, fontWeight: 600,
+                        color: "#9e9e9e", paddingBottom: 10, paddingRight: 12,
+                        letterSpacing: "0.04em",
+                      }}>
+                        {col.toUpperCase()}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((f, i) => (
+                    <tr
+                      key={f.name}
+                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f5f5f5" : "none" }}
+                    >
+                      <td style={{ fontSize: 13, color: "#212121", fontWeight: 500, padding: "12px 12px 12px 0" }}>{f.name}</td>
+                      <td style={{ fontSize: 13, color: "#424242", padding: "12px 12px 12px 0" }}>{f.votes}</td>
+                      <td style={{ fontSize: 13, color: "#424242", padding: "12px 12px 12px 0" }}>{f.effort}</td>
+                      <td style={{ padding: "12px 0" }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600,
+                          padding: "3px 10px", borderRadius: 20,
+                          ...statusStyles[f.status],
+                        }}>
+                          {f.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-  // ── Y-axis grid lines + labels ──
-  const yTicks = 4;
-  for (let t = 0; t <= yTicks; t++) {
-    const v = lo + ((hi - lo) / yTicks) * t;
-    const y = yScale(v);
+          </div>
+        </div>
+      );
+    }
 
-    // grid line
-    const line = document.createElementNS(ns, "line");
-    line.setAttribute("x1", PAD.left);
-    line.setAttribute("x2", PAD.left + CHART_W);
-    line.setAttribute("y1", y);
-    line.setAttribute("y2", y);
-    line.setAttribute("stroke", "#f0f0f0");
-    line.setAttribute("stroke-dasharray", "3 3");
-    svg.appendChild(line);
-
-    // label
-    const lbl = document.createElementNS(ns, "text");
-    lbl.setAttribute("x", PAD.left - 6);
-    lbl.setAttribute("y", y + 4);
-    lbl.setAttribute("text-anchor", "end");
-    lbl.setAttribute("font-size", "11");
-    lbl.setAttribute("fill", "#9e9e9e");
-    lbl.setAttribute("font-family", "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif");
-    lbl.textContent = `${Math.round(v / 1000)}k`;
-    svg.appendChild(lbl);
-  }
-
-  // ── Area path ──
-  const pts = data.map((d, i) => ({ x: xScale(i), y: yScale(d.mau) }));
-  const areaD = [
-    `M ${pts[0].x} ${pts[0].y}`,
-    ...pts.slice(1).map(p => `L ${p.x} ${p.y}`),
-    `L ${pts[pts.length-1].x} ${PAD.top + CHART_H}`,
-    `L ${pts[0].x} ${PAD.top + CHART_H}`,
-    "Z"
-  ].join(" ");
-
-  const area = document.createElementNS(ns, "path");
-  area.setAttribute("d", areaD);
-  area.setAttribute("fill", "url(#mauFill)");
-  svg.appendChild(area);
-
-  // ── Line path ──
-  const lineD = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  const line  = document.createElementNS(ns, "path");
-  line.setAttribute("d", lineD);
-  line.setAttribute("fill", "none");
-  line.setAttribute("stroke", PURPLE);
-  line.setAttribute("stroke-width", "2.5");
-  line.setAttribute("stroke-linejoin", "round");
-  line.setAttribute("stroke-linecap", "round");
-  svg.appendChild(line);
-
-  // ── X-axis labels ──
-  data.forEach((d, i) => {
-    const lbl = document.createElementNS(ns, "text");
-    lbl.setAttribute("x", xScale(i));
-    lbl.setAttribute("y", PAD.top + CHART_H + 18);
-    lbl.setAttribute("text-anchor", "middle");
-    lbl.setAttribute("font-size", "11");
-    lbl.setAttribute("fill", "#9e9e9e");
-    lbl.setAttribute("font-family", "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif");
-    lbl.textContent = d.month;
-    svg.appendChild(lbl);
-  });
-
-  // ── Interactive hover overlay ──
-  const tooltip = document.getElementById("chart-tooltip");
-  const wrap    = document.getElementById("chart-wrap");
-
-  pts.forEach((p, i) => {
-    // vertical hover hit-area (thin transparent rect per column)
-    const colW = CHART_W / Math.max(data.length - 1, 1);
-    const hit  = document.createElementNS(ns, "rect");
-    hit.setAttribute("x",      p.x - colW / 2);
-    hit.setAttribute("y",      PAD.top);
-    hit.setAttribute("width",  colW);
-    hit.setAttribute("height", CHART_H);
-    hit.setAttribute("fill",   "transparent");
-    hit.style.cursor = "crosshair";
-    svg.appendChild(hit);
-
-    // dot (hidden by default)
-    const dot = document.createElementNS(ns, "circle");
-    dot.setAttribute("cx", p.x);
-    dot.setAttribute("cy", p.y);
-    dot.setAttribute("r",  5);
-    dot.setAttribute("fill", PURPLE);
-    dot.setAttribute("stroke", "#fff");
-    dot.setAttribute("stroke-width", "2");
-    dot.style.display = "none";
-    dot.style.pointerEvents = "none";
-    svg.appendChild(dot);
-
-    // vertical rule (hidden by default)
-    const rule = document.createElementNS(ns, "line");
-    rule.setAttribute("x1", p.x); rule.setAttribute("x2", p.x);
-    rule.setAttribute("y1", PAD.top); rule.setAttribute("y2", PAD.top + CHART_H);
-    rule.setAttribute("stroke", "#e0e0e0");
-    rule.setAttribute("stroke-width", "1");
-    rule.setAttribute("stroke-dasharray", "4 2");
-    rule.style.display = "none";
-    rule.style.pointerEvents = "none";
-    svg.appendChild(rule);
-
-    hit.addEventListener("mouseenter", (e) => {
-      dot.style.display  = "";
-      rule.style.display = "";
-      tooltip.style.display = "block";
-      tooltip.innerHTML = `<strong>${data[i].month}</strong><span>MAU: ${data[i].mau.toLocaleString()}</span>`;
-    });
-    hit.addEventListener("mousemove", (e) => {
-      const rect = wrap.getBoundingClientRect();
-      let tx = e.clientX - rect.left + 12;
-      let ty = e.clientY - rect.top  - 36;
-      // keep tooltip inside wrap
-      if (tx + 130 > wrap.offsetWidth) tx = e.clientX - rect.left - 130;
-      tooltip.style.left = tx + "px";
-      tooltip.style.top  = ty + "px";
-    });
-    hit.addEventListener("mouseleave", () => {
-      dot.style.display  = "none";
-      rule.style.display = "none";
-      tooltip.style.display = "none";
-    });
-  });
-}
-
-// ─── Range Buttons ────────────────────────────────────────────────────────────
-function buildRangeBtns() {
-  const container = document.getElementById("range-btns");
-  container.innerHTML = "";
-  ["1M","3M","6M"].forEach(r => {
-    const btn = document.createElement("button");
-    btn.className = "range-btn" + (r === activeRange ? " active" : "");
-    btn.textContent = r;
-    btn.addEventListener("click", () => {
-      activeRange = r;
-      buildRangeBtns();
-      buildKPIs();
-      buildChart();
-    });
-    container.appendChild(btn);
-  });
-}
-
-// ─── Feature Table ────────────────────────────────────────────────────────────
-function buildFeatureTable() {
-  const filtered = FEATURES
-    .filter(f => activeFilter === "All" || f.status === activeFilter)
-    .sort((a, b) => b.votes - a.votes);
-
-  document.getElementById("feature-count").textContent = `${filtered.length} items`;
-
-  const tbody = document.getElementById("feature-tbody");
-  tbody.innerHTML = "";
-
-  filtered.forEach((f, i) => {
-    const tr = document.createElement("tr");
-    tr.style.borderBottom = i < filtered.length - 1 ? "1px solid #f5f5f5" : "none";
-    tr.innerHTML = `
-      <td>${f.name}</td>
-      <td>${f.votes}</td>
-      <td>${f.effort}</td>
-      <td><span class="status-badge status-${f.status}">${f.status}</span></td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-// ─── Filter Buttons ───────────────────────────────────────────────────────────
-function buildFilterBtns() {
-  const container = document.getElementById("filter-btns");
-  container.innerHTML = "";
-  ["All","Shipped","Building","Backlog"].forEach(f => {
-    const btn = document.createElement("button");
-    btn.className = "filter-btn" + (f === activeFilter ? " active" : "");
-    btn.textContent = f;
-    btn.addEventListener("click", () => {
-      activeFilter = f;
-      buildFilterBtns();
-      buildFeatureTable();
-    });
-    container.appendChild(btn);
-  });
-}
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-buildKPIs();
-buildRangeBtns();
-buildChart();
-buildFilterBtns();
-buildFeatureTable();
-
-// Redraw chart on resize so SVG proportions stay correct
-window.addEventListener("resize", buildChart);
-</script>
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      React.createElement(HnADashboard)
+    );
+  </script>
 </body>
 </html>
